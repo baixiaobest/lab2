@@ -342,6 +342,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
         if (filp_writable) {    //fire all writers
             eprintk("release write lock\n");
             d->num_writer=0;
+            filp->f_flags &= ~F_OSPRD_LOCKED;
         }else{                  //one reader quit reading
             d->num_reader--;
             eprintk("reduce reade locks to %d\n",d->num_reader);
