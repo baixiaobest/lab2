@@ -65,8 +65,8 @@ typedef struct osprd_info {
 	/* HINT: You may want to add additional fields to help
 	         in detecting deadlock. */
 //////////////////////////////////////////////////////////////////////
-    unsigned int num_reader;
-    unsigned int num_writer;
+    int num_reader;
+    int num_writer;
     unsigned* invalid_tickets_array;
     unsigned int num_invalid_tikets;
     pid_t current_popular_writer;
@@ -258,7 +258,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
              if condition becomes true, signal is sent to process and
              needs to invalidate the ticket*/
             eprintk("trying to get write lock...\n");
-            if (wait_event_interruptible(d->blockq, d->ticket_tail==my_ticket&&(d->num_reader==0 && d->num_writer==0))==-ERESTARTSYS) {
+            if (wait_event_interruptible(d->blockq, d->ticket_tail==my_ticket&&(d->num_reader<=0 && d->num_writer==0))==-ERESTARTSYS) {
                 osp_spin_lock(&(d->mutex));
                 if (d->ticket_tail==my_ticket) {
                     d->ticket_tail++;
@@ -342,7 +342,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
             d->num_writer=0;
         }else{                  //one reader quit reading
             d->num_reader--;
-            if (d->num_reader==0) {
+            if (d->num_reader<=0) {
                 filp->f_flags &= ~F_OSPRD_LOCKED;
             }
         }
