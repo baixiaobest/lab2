@@ -342,7 +342,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
             d->num_writer=0;
         }else{                  //one reader quit reading
             d->num_reader--;
-            if (num_reader==0) {
+            if (d->num_reader==0) {
                 filp->f_flags &= ~F_OSPRD_LOCKED;
             }
         }
