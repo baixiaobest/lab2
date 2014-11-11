@@ -125,9 +125,13 @@ static void osprd_process_request(osprd_info_t *d, struct request *req)
     unsigned long dataSize = req->current_nr_sectors*SECTOR_SIZE;
     
     if (rq_data_dir(req)==READ) {
+        osp_spin_lock(&(d->mutex));
         memcpy(req->buffer, d->data+offset, dataSize);
+        osp_spin_unlock(&(d->mutex));
     }else if (rq_data_dir(req)==WRITE){
+        osp_spin_lock(&(d->mutex));
         memcpy(d->data+offset, req->buffer, dataSize);
+        osp_spin_unlock(&(d->mutex));
     }else{
         end_request(req,1);
     }
