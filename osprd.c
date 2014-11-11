@@ -34,7 +34,7 @@
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("CS 111 RAM Disk");
 // EXERCISE: Pass your names into the kernel as the module's authors.
-MODULE_AUTHOR("Skeletor");
+MODULE_AUTHOR("BaixiaoHuang_and_JiayiLu");
 
 #define OSPRD_MAJOR	222
 
@@ -126,7 +126,7 @@ static void osprd_process_request(osprd_info_t *d, struct request *req)
     }else if(re_data_dir(req)==WRITE){
         memcpy(d->data+(req->sector)*SECTOR_SIZE, req->buffer, req->current_nr_sectors * SECTOR_SIZE);
     }else{
-        end_request(req, 1);
+        end_request(req, 0);
     }
 	//eprintk("Should process request...\n");
 
