@@ -64,6 +64,14 @@ typedef struct osprd_info {
 
 	/* HINT: You may want to add additional fields to help
 	         in detecting deadlock. */
+//////////////////////////////////////////////////////////////////////
+    unsigned int num_reader;
+    unsigned int num_writer;
+    unsigned* invalid_tickets_array;
+    unsigned int num_invalid_tikets;
+    pid_t current_popular_writer;
+    
+//////////////////////////////////////////////////////////////////////
 
 	// The following elements are used internally; you don't need
 	// to understand them.
@@ -125,13 +133,13 @@ static void osprd_process_request(osprd_info_t *d, struct request *req)
     unsigned long dataSize = req->current_nr_sectors*SECTOR_SIZE;
     
     if (rq_data_dir(req)==READ) {
-        osp_spin_lock(&(d->mutex));
+        //osp_spin_lock(&(d->mutex));
         memcpy(req->buffer, d->data+offset, dataSize);
-        osp_spin_unlock(&(d->mutex));
+        //osp_spin_unlock(&(d->mutex));
     }else if (rq_data_dir(req)==WRITE){
-        osp_spin_lock(&(d->mutex));
+        //osp_spin_lock(&(d->mutex));
         memcpy(d->data+offset, req->buffer, dataSize);
-        osp_spin_unlock(&(d->mutex));
+        //osp_spin_unlock(&(d->mutex));
     }else{
         end_request(req,1);
     }
@@ -239,8 +247,64 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		// be protected by a spinlock; which ones?)
 
 		// Your code here (instead of the next two lines).
-		eprintk("Attempting to acquire\n");
-		r = -ENOTTY;
+        
+        //buy a ticket and wait in line
+        osp_spin_lock(&(d->mutex));
+        my_ticket = d->ticket_head;
+        d->ticket_head++;
+        osp_spin_unlock(&(d->mutex));
+        unsigned my_ticket;
+        if (flip_writable) {        //trying to obtain write lock
+            /*wait until no one has read or write lock
+             if condition becomes true, signal is sent to process and
+             needs to invalidate the ticket*/
+            if (wait_event_interruptible(d->blockq, d->ticket_tail==my_ticket&&(d->num_reader==0 && d->num_writer==0))==-ERESTARTSYS) {
+                osp_spin_lock(&(d->mutex));
+                if (d->ticket_tail==my_ticket) {
+                    d->ticket_tail++;
+                }
+                else{
+                    d->invalid_tickets_array[d->num_invalid_tikets++]=my_ticket;
+                }
+                osp_spin_unlock(&(d->mutex));
+                return -ERESTARTSYS;
+            }
+            //get your write lock here, good luck writing!
+            osp_spin_lock(&(d->mutex));
+            d->current_popular_writer = current->pid;
+            osp_spin_unlock(&(d->mutex));
+        }else{                      //trying to obtain read lock
+            if (wait_event_interruptible(d->blockq, (d->ticket_tail==my_ticket && d->num_writer==0))==-ERESTARTSYS) {
+                osp_spin_lock(&(d->mutex));
+                if (d->ticket_tail==my_ticket) {
+                    d->ticket_tail++;
+                }
+                else{
+                    d->invalid_tickets_array[d->num_invalid_tikets++]=my_ticket;
+                }
+                osp_spin_unlock(&(d->mutex));
+            }
+            //get your read lock here, good luck reading!
+            osp_spin_lock(&(d->mutex));
+            d->num_reader++;
+            osp_spin_unlock(&(d->mutex));
+        }
+        //next in line please! But we need to check if next guy is still alive :-)
+        osp_spin_lock(&(d->mutex));
+        d->ticket_tail++;
+        int i=0;
+        for (; i<d->num_invalid_tikets; i++) {
+            if (d->invalid_tickets_array[i]==d->ticket_tail) {
+                d->ticket_tail++;
+                d->invalid_tickets_array[i] = d->invalid_tickets_array[d->num_invalid_tikets];
+                d->num_invalid_tikets--;
+                i=0;
+            }
+        }
+        osp_spin_unlock(&(d->mutex));
+        
+		//eprintk("Attempting to acquire\n");
+		//r = -ENOTTY;
 
 	} else if (cmd == OSPRDIOCTRYACQUIRE) {
 
@@ -282,6 +346,11 @@ static void osprd_setup(osprd_info_t *d)
 	osp_spin_lock_init(&d->mutex);
 	d->ticket_head = d->ticket_tail = 0;
 	/* Add code here if you add fields to osprd_info_t. */
+    d->num_writer=0
+    d->num_reader=0;
+    d->invalid_tickets_array = (unsigned*) kmalloc(1024*sizeof(unsigned), GFP_ATOMIC);
+    d->num_invalid_tikets=0;
+    d->current_popular_writer=-1;
 }
 
 
