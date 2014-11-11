@@ -124,7 +124,7 @@ static void osprd_process_request(osprd_info_t *d, struct request *req)
     unsigned long offset = req->sector*SECTOR_SIZE;
     unsigned long dataSize = req->current_nr_sectors*SECTOR_SIZE;
     
-    if (re_data_dir(req)==READ) {
+    if (rq_data_dir(req)==READ) {
         memcpy(req->buffer, d->data+offset, dataSize);
     }else if (rq_data_dir(req)==WRITE){
         memcpy(d->data+offset, req->buffer, dataSize);
