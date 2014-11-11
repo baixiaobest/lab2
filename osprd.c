@@ -272,6 +272,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
             //get your write lock here, good luck writing!
             eprintk("I got write lock!\n");
             osp_spin_lock(&(d->mutex));
+            d->num_writer++;
             d->current_popular_writer = current->pid;
             filp->f_flags |= F_OSPRD_LOCKED;
             osp_spin_unlock(&(d->mutex));
