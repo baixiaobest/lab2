@@ -8,15 +8,15 @@
 # If you have any other information you'd like us to know, please add it at
 # the end of the file.
 
-# Partner 1
-Name: Your Name Here
-Student ID: Your ID Here
-Email: Your Email Here
+Partner 1
+Name: Baixiao Huang
+Student ID: 504313981
+Email: huangbaixiao@g.ucla.edu
 
-# Partner 2
-#Name: Partner's Name Here
-#Student ID: Partner's ID Here
-#Email: Partner's Email Here
+Partner 2
+Name: Jiayi Lu
+Student ID: 004079546
+Email: jiayilu@g.ucla.edu
 
 
 # Add any other information you'd like us to have below this line.
