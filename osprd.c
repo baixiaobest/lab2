@@ -128,7 +128,7 @@ static void osprd_process_request(osprd_info_t *d, struct request *req)
     }else{
         end_request(req, 1);
     }
-	eprintk("Should process request...\n");
+	//eprintk("Should process request...\n");
 
 	end_request(req, 1);
 }
