@@ -273,6 +273,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
             eprintk("I got write lock!\n");
             osp_spin_lock(&(d->mutex));
             d->current_popular_writer = current->pid;
+            filp->f_flags |= F_OSPRD_LOCKED;
             osp_spin_unlock(&(d->mutex));
         }else{                      //trying to obtain read lock
             eprintk("trying to get read lock...\n");
@@ -290,6 +291,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
             eprintk("I got read lock!\n");
             osp_spin_lock(&(d->mutex));
             d->num_reader++;
+            filp->f_flags |= F_OSPRD_LOCKED;
             osp_spin_unlock(&(d->mutex));
         }
         //next in line please! But we need to check if next guy is still alive :-)
@@ -305,7 +307,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
             }
         }
         osp_spin_unlock(&(d->mutex));
-        
+        r=0;
 		//eprintk("Attempting to acquire\n");
 		//r = -ENOTTY;
 
@@ -332,8 +334,21 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		// you need, and return 0.
 
 		// Your code here (instead of the next line).
-		r = -ENOTTY;
-
+        osp_spin_lock(&(d->mutex));
+        if (!(filp->f_flags & F_OSPRD_LOCKED)) { //no lock flag
+            return -EINVAL;
+        }
+        if (filp_writable) {    //fire all writers
+            d->num_writer=0;
+        }else{                  //one reader quit reading
+            d->num_reader--;
+            if (num_reader==0) {
+                filp->f_flags &= ~F_OSPRD_LOCKED;
+            }
+        }
+        wake_up_all(&(d->blockq));
+        osp_spin_unlock(&(d->mutex));
+        r=0;
 	} else
 		r = -ENOTTY; /* unknown command */
 	return r;
