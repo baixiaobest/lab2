@@ -257,6 +257,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
             /*wait until no one has read or write lock
              if condition becomes true, signal is sent to process and
              needs to invalidate the ticket*/
+            eprintk("trying to get write lock...\n");
             if (wait_event_interruptible(d->blockq, d->ticket_tail==my_ticket&&(d->num_reader==0 && d->num_writer==0))==-ERESTARTSYS) {
                 osp_spin_lock(&(d->mutex));
                 if (d->ticket_tail==my_ticket) {
@@ -269,10 +270,12 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
                 return -ERESTARTSYS;
             }
             //get your write lock here, good luck writing!
+            eprintk("I got write lock!\n");
             osp_spin_lock(&(d->mutex));
             d->current_popular_writer = current->pid;
             osp_spin_unlock(&(d->mutex));
         }else{                      //trying to obtain read lock
+            eprintk("trying to get read lock...\n");
             if (wait_event_interruptible(d->blockq, (d->ticket_tail==my_ticket && d->num_writer==0))==-ERESTARTSYS) {
                 osp_spin_lock(&(d->mutex));
                 if (d->ticket_tail==my_ticket) {
@@ -284,6 +287,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
                 osp_spin_unlock(&(d->mutex));
             }
             //get your read lock here, good luck reading!
+            eprintk("I got read lock!\n");
             osp_spin_lock(&(d->mutex));
             d->num_reader++;
             osp_spin_unlock(&(d->mutex));
