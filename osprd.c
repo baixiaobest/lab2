@@ -340,8 +340,29 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		// Otherwise, if we can grant the lock request, return 0.
 
 		// Your code here (instead of the next two lines).
-		eprintk("Attempting to try acquire\n");
-		r = -ENOTTY;
+        osp_spin_lock(&(d->mutex));
+        unsigned my_ticket = d->ticket_head;
+        d->ticket_head++;
+        osp_spin_unlock(&(d->mutex));
+        if (filp_writable) {  //a writer wants to publish his/her book!
+            if (d->num_reader==0 && d->num_writer==0) {
+                //writer get the lock, good luck writing!
+                d->num_writer++;
+                d->current_popular_writer = current->pid;
+                filp->f_flags |= F_OSPRD_LOCKED;
+            }else{
+                r = -EBUSY;
+            }
+        }else{    //an avid reader is waiting for new book release!
+            if (d->num_writer==0) {
+                //reader grabs a book and run away
+                d->num_reader++;
+                filp->f_flags |= F_OSPRD_LOCKED;
+            }else{
+                r = -EBUSY;
+            }
+        }
+        r = 0;
 
 	} else if (cmd == OSPRDIOCRELEASE) {
 
