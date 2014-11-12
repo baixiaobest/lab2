@@ -190,7 +190,7 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
             if (filp->f_flags & d->num_reader!=0) {
                 d->num_reader--;
             }
-            if (num_reader==0) {  //we can unlock if no reader is interested in reading
+            if (d->num_reader==0) {  //we can unlock if no reader is interested in reading
                 filp->f_flags &= ~F_OSPRD_LOCKED;
             }
         }
