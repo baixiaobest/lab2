@@ -341,10 +341,8 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 
 		// Your code here (instead of the next two lines).
         osp_spin_lock(&(d->mutex));
-        unsigned my_ticket = d->ticket_head;
-        d->ticket_head++;
         if (filp_writable) {  //a writer wants to publish his/her book!
-            if (d->num_reader==0 && d->num_writer==0 && my_ticket==d->ticket_tail) {
+            if (d->num_reader==0 && d->num_writer==0) {
                 //writer get the lock, good luck writing!
                 d->num_writer++;
                 d->current_popular_writer = current->pid;
@@ -354,23 +352,13 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
                 return -EBUSY;
             }
         }else{    //an avid reader is waiting for new book release!
-            if (d->num_writer==0 && my_ticket==d->ticket_tail) {
+            if (d->num_writer==0) {
                 //reader grabs a book and run away
                 d->num_reader++;
                 filp->f_flags |= F_OSPRD_LOCKED;
             }else{
                 osp_spin_unlock(&(d->mutex));
                 return -EBUSY;
-            }
-        }
-        d->ticket_tail++;
-        int i=0;
-        for (; i<d->num_invalid_tikets; i++) {
-            if (d->invalid_tickets_array[i]==d->ticket_tail) {
-                d->ticket_tail++;
-                d->invalid_tickets_array[i] = d->invalid_tickets_array[d->num_invalid_tikets];
-                d->num_invalid_tikets--;
-                i=0;
             }
         }
         osp_spin_unlock(&(d->mutex));
