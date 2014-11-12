@@ -276,13 +276,14 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
              if condition becomes true, signal is sent to process and
              needs to invalidate the ticket*/
             eprintk("trying to get write lock...\nnum_writer: %d num_reader: %d\n", d->num_writer, d->num_reader);
-            if (wait_event_interruptible(d->blockq, d->ticket_tail==my_ticket&&(d->num_reader==0 && d->num_writer==0))==-ERESTARTSYS) {
+            if (wait_event_interruptible(d->blockq, d->ticket_tail==my_ticket&&d->num_reader==0 && d->num_writer==0)==-ERESTARTSYS) {
                 osp_spin_lock(&(d->mutex));
                 if (d->ticket_tail==my_ticket) {
                     d->ticket_tail++;
                 }
                 else{
                     d->invalid_tickets_array[d->num_invalid_tikets++]=my_ticket;
+                    d->num_invalid_tikets++;
                 }
                 osp_spin_unlock(&(d->mutex));
                 return -ERESTARTSYS;
@@ -303,6 +304,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
                 }
                 else{
                     d->invalid_tickets_array[d->num_invalid_tikets++]=my_ticket;
+                    d->num_invalid_tikets++;
                 }
                 osp_spin_unlock(&(d->mutex));
             }
