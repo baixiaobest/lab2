@@ -351,7 +351,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
                 filp->f_flags |= F_OSPRD_LOCKED;
             }else{
                 osp_spin_unlock(&(d->mutex));
-                return = -EBUSY;
+                return -EBUSY;
             }
         }else{    //an avid reader is waiting for new book release!
             if (d->num_writer==0 && my_ticket==d->ticket_tail) {
@@ -360,7 +360,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
                 filp->f_flags |= F_OSPRD_LOCKED;
             }else{
                 osp_spin_unlock(&(d->mutex));
-                return = -EBUSY;
+                return -EBUSY;
             }
         }
         d->ticket_tail++;
