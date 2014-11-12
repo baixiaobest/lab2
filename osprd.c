@@ -275,7 +275,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
             /*wait until no one has read or write lock
              if condition becomes true, signal is sent to process and
              needs to invalidate the ticket*/
-            eprintk("trying to get write lock...\nnum_writer: %d num_reader: %d\n", d->num_writer, d->num_reader);
+            //eprintk("trying to get write lock...\nnum_writer: %d num_reader: %d\n", d->num_writer, d->num_reader);
             if (wait_event_interruptible(d->blockq, d->ticket_tail==my_ticket&&d->num_reader==0 && d->num_writer==0)==-ERESTARTSYS) {
                 osp_spin_lock(&(d->mutex));
                 if (d->ticket_tail==my_ticket) {
@@ -289,14 +289,14 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
                 return -ERESTARTSYS;
             }
             //get your write lock here, good luck writing!
-            eprintk("I got write lock!\n");
+            //eprintk("I got write lock!\n");
             osp_spin_lock(&(d->mutex));
             d->num_writer++;
             d->current_popular_writer = current->pid;
             filp->f_flags |= F_OSPRD_LOCKED;
             osp_spin_unlock(&(d->mutex));
         }else{                      //trying to obtain read lock
-            eprintk("trying to get read lock...\nnum_writer: %d num_reader\n",d->num_writer, d->num_reader);
+            //eprintk("trying to get read lock...\nnum_writer: %d num_reader\n",d->num_writer, d->num_reader);
             if (wait_event_interruptible(d->blockq, (d->ticket_tail==my_ticket && d->num_writer==0))==-ERESTARTSYS) {
                 osp_spin_lock(&(d->mutex));
                 if (d->ticket_tail==my_ticket) {
@@ -310,7 +310,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
                 return -ERESTARTSYS;
             }
             //get your read lock here, good luck reading!
-            eprintk("I got read lock!\n");
+            //eprintk("I got read lock!\n");
             osp_spin_lock(&(d->mutex));
             d->num_reader++;
             filp->f_flags |= F_OSPRD_LOCKED;
@@ -382,12 +382,12 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
             return -EINVAL;
         }
         if (filp_writable) {    //fire all writers
-            eprintk("release write lock\n");
+            //eprintk("release write lock\n");
             d->num_writer=0;
             filp->f_flags &= ~F_OSPRD_LOCKED;
         }else{                  //one reader quit reading
             d->num_reader--;
-            eprintk("reduce reade locks to %d\n",d->num_reader);
+            //eprintk("reduce reade locks to %d\n",d->num_reader);
             if (d->num_reader==0) {
                 filp->f_flags &= ~F_OSPRD_LOCKED;
             }
