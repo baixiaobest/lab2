@@ -133,13 +133,13 @@ static void osprd_process_request(osprd_info_t *d, struct request *req)
     unsigned long dataSize = req->current_nr_sectors*SECTOR_SIZE;
     
     if (rq_data_dir(req)==READ) {
-        //osp_spin_lock(&(d->mutex));
+        osp_spin_lock(&(d->mutex));
         memcpy(req->buffer, d->data+offset, dataSize);
-        //osp_spin_unlock(&(d->mutex));
+        osp_spin_unlock(&(d->mutex));
     }else if (rq_data_dir(req)==WRITE){
-        //osp_spin_lock(&(d->mutex));
+        osp_spin_lock(&(d->mutex));
         memcpy(d->data+offset, req->buffer, dataSize);
-        //osp_spin_unlock(&(d->mutex));
+        osp_spin_unlock(&(d->mutex));
     }else{
         end_request(req,1);
     }
@@ -177,7 +177,25 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 		// as appropriate.
 
 		// Your code here.
-
+        
+        //first thing first, lock the mutex
+        osp_spin_lock(&(d->mutex));
+        if (filp_writable) {  //fire the writer
+            if (filp->f_flags&F_OSPRD_LOCKED && d->num_writer!=0) {
+                filp->f_flags &= ~F_OSPRD_LOCKED;
+            }
+            d->num_writer=0;
+            d->current_popular_writer=-1;
+        }else{               //a reader is tired of reading
+            if (filp->f_flags & d->num_reader!=0) {
+                d->num_reader--;
+            }
+            if (num_reader==0) {  //we can unlock if no reader is interested in reading
+                filp->f_flags &= ~F_OSPRD_LOCKED;
+            }
+        }
+        wake_up_all(&(d->blockq));
+        osp_spin_unlock(&(d->mutex));
 		// This line avoids compiler warnings; you may remove it.
 		(void) filp_writable, (void) d;
 
