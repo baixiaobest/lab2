@@ -307,6 +307,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
                     d->num_invalid_tikets++;
                 }
                 osp_spin_unlock(&(d->mutex));
+                return -ERESTARTSYS;
             }
             //get your read lock here, good luck reading!
             eprintk("I got read lock!\n");
