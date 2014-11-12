@@ -187,7 +187,7 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
             d->num_writer=0;
             d->current_popular_writer=-1;
         }else{               //a reader is tired of reading
-            if (filp->f_flags & d->num_reader!=0) {
+            if (filp->f_flags && d->num_reader!=0) {
                 d->num_reader--;
             }
             if (d->num_reader==0) {  //we can unlock if no reader is interested in reading
