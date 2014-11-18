@@ -103,6 +103,7 @@ static osprd_info_t osprds[NOSPRD];
 
 // Declare useful helper functions
 char* parseNotifiArg(char* arg, int *start_ptr, int *end_ptr);
+int checkNotification(osprd_info_t *d, char*data, unsigned long offset, unsigned long dataSize, char* buffer);
 /*
  * file2osprd(filp)
  *   Given an open file, check whether that file corresponds to an OSP ramdisk.
@@ -352,6 +353,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
             new_node->end = end;
             new_node->next = NULL;
             new_node->waiter_pid = current->pid;
+            osp_spin_lock(&(d->mutex));
             if (d->notifi_list==NULL) {
                 d->notifi_list = new_node;
                 d->notifi_list_tail = new_node;
@@ -359,6 +361,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
                 d->notifi_list_tail->next = new_node;
                 d->notifi_list_tail = new_node;
             }
+            osp_spin_unlock(&(d->mutex));
         }
         struct notification_list * ptr = d->notifi_list;
         while (ptr!=NULL) {
@@ -412,6 +415,27 @@ char* parseNotifiArg(char* arg, int *start_ptr, int *end_ptr)
         arg++;
     }
     return arg;
+}
+
+int checkNotification(osprd_info_t *d, char*data, unsigned long offset, unsigned long dataSize, char* buffer)
+{
+    notification_list* current_ptr = d->notifi_list;
+    int return_status = 0;
+    while (current_ptr!=NULL) {
+        if ((int)offset>current_ptr->start-(int)dataSize && (int)offset<=current_ptr->end) {
+            int ram_ptr = current_ptr->start;
+            int buf_ptr = (int)offset<current_ptr->start ? current_ptr->start-(int)offset : 0;
+            while (buf_ptr!=(int)dataSize || ram_ptr!=current_ptr->end) {
+                if ((char)data[start_ptr] != (char)buffer[buf_ptr]) {
+                    current_ptr->change = 1;
+                    return_status = 1;
+                }
+                buf_ptr++;ram_ptr++;
+            }
+        }
+        current_ptr = current_ptr->next;
+    }
+    return return_status;
 }
 
 /*****************************************************************************/
