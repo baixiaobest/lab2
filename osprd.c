@@ -351,6 +351,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
             new_node->start = start;
             new_node->end = end;
             new_node->next = NULL;
+            new_node->waiter_pid = current->pid;
             if (d->notifi_list==NULL) {
                 d->notifi_list = new_node;
                 d->notifi_list_tail = new_node;
@@ -363,7 +364,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
         while (ptr!=NULL) {
             start = ptr->start;
             end = ptr->end;
-            eprintk("you subscribe the notification: %d to %d\n", start, end);
+            eprintk("process %d subscribe the notification: %d to %d\n", ptr->waiter_pid, start, end);
             ptr = ptr->next;
         }
     } else
