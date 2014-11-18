@@ -130,12 +130,13 @@ int main(int argc, char *argv[])
 	char *newarg;
 	int devfd, ofd;
 	int i, r, timeout = 0, zero = 0;
-	int mode = O_RDONLY, dolock = 0, dotrylock = 0;
+	int mode = O_RDONLY, dolock = 0, dotrylock = 0, notification = 0;
 	ssize_t size = -1;
 	ssize_t offset = 0;
 	double delay = 0;
 	double lock_delay = 0;
 	const char *devname = "/dev/osprda";
+    char* notification_argument = NULL;
 
  flag:
 	// Detect a read/write option
@@ -165,6 +166,7 @@ int main(int argc, char *argv[])
 	if (argc >= 2 && strcmp(argv[1], "-l") == 0) {
 		dolock = 1;
 		dotrylock = 0;
+        notification = 0;
 		argv++, argc--;
 		if (argc >= 2 && parse_double(argv[1], &lock_delay))
 			argv++, argc--;
@@ -175,11 +177,26 @@ int main(int argc, char *argv[])
 	if (argc >= 2 && strcmp(argv[1], "-L") == 0) {
 		dotrylock = 1;
 		dolock = 0;
+        notification = 0;
 		argv++, argc--;
 		if (argc >= 2 && parse_double(argv[1], &lock_delay))
 			argv++, argc--;
 		goto flag;
 	}
+    
+    //Detect notification option
+    if (argc >= 2 && strcmp(argv[1], "-n") == 0) {
+        notification = 1;
+        dolock = 0;
+        dotrylock = 0;
+        argv++, argc--;
+        if (argc >=2) {
+            notification_argument = argv[1];
+            argv++;
+            argc--;
+        }
+        goto flag;
+    }
 
 	// Detect a delay option
 	if (argc >= 2 && strcmp(argv[1], "-d") == 0) {
@@ -214,7 +231,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Lock, possibly after delay
-	if (dolock || dotrylock) {
+	if (dolock || dotrylock || notification) {
 		if (lock_delay >= 0)
 			sleep_for(lock_delay);
 		if (dolock
@@ -225,7 +242,11 @@ int main(int argc, char *argv[])
 			   && ioctl(devfd, OSPRDIOCTRYACQUIRE, NULL) == -1) {
 			perror("ioctl OSPRDIOCTRYACQUIRE");
 			exit(1);
-		}
+		} else if (notification
+                   && ioctl(devfd, OSPRDIOCGETNOTIFIED, notification_argument) == -1){
+            perror("ioctl OSPRDIOCGETNOTIFIED");
+            exit(1);
+        }
 	}
 
 	// Delay

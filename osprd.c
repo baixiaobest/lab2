@@ -81,6 +81,19 @@ typedef struct osprd_info {
 	struct gendisk *gd;             // The generic disk.
 } osprd_info_t;
 
+//////////////////////////////////////////////////////////////////////
+//notification structure//
+//////////////////////////
+typedef struct notification_list
+{
+    pid_t waiter_pid;
+    int change;
+    int start;
+    int end;
+    struct notification_list *next;
+} notification_list_t;
+//////////////////////////////////////////////////////////////////////
+
 #define NOSPRD 4
 static osprd_info_t osprds[NOSPRD];
 
@@ -119,15 +132,6 @@ static void osprd_process_request(osprd_info_t *d, struct request *req)
 		end_request(req, 0);
 		return;
 	}
-
-	// EXERCISE: Perform the read or write request by copying data between
-	// our data array and the request's buffer.
-	// Hint: The 'struct request' argument tells you what kind of request
-	// this is, and which sectors are being read or written.
-	// Read about 'struct request' in <linux/blkdev.h>.
-	// Consider the 'req->sector', 'req->current_nr_sectors', and
-	// 'req->buffer' members, and the rq_data_dir() function.
-
 	// Your code here.
     unsigned long offset = req->sector*SECTOR_SIZE;
     unsigned long dataSize = req->current_nr_sectors*SECTOR_SIZE;
@@ -229,41 +233,6 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 
 	if (cmd == OSPRDIOCACQUIRE) {
 
-		// EXERCISE: Lock the ramdisk.
-		//
-		// If *filp is open for writing (filp_writable), then attempt
-		// to write-lock the ramdisk; otherwise attempt to read-lock
-		// the ramdisk.
-		//
-                // This lock request must block using 'd->blockq' until:
-		// 1) no other process holds a write lock;
-		// 2) either the request is for a read lock, or no other process
-		//    holds a read lock; and
-		// 3) lock requests should be serviced in order, so no process
-		//    that blocked earlier is still blocked waiting for the
-		//    lock.
-		//
-		// If a process acquires a lock, mark this fact by setting
-		// 'filp->f_flags |= F_OSPRD_LOCKED'.  You also need to
-		// keep track of how many read and write locks are held:
-		// change the 'osprd_info_t' structure to do this.
-		//
-		// Also wake up processes waiting on 'd->blockq' as needed.
-		//
-		// If the lock request would cause a deadlock, return -EDEADLK.
-		// If the lock request blocks and is awoken by a signal, then
-		// return -ERESTARTSYS.
-		// Otherwise, if we can grant the lock request, return 0.
-
-		// 'd->ticket_head' and 'd->ticket_tail' should help you
-		// service lock requests in order.  These implement a ticket
-		// order: 'ticket_tail' is the next ticket, and 'ticket_head'
-		// is the ticket currently being served.  You should set a local
-		// variable to 'd->ticket_head' and increment 'd->ticket_head'.
-		// Then, block at least until 'd->ticket_tail == local_ticket'.
-		// (Some of these operations are in a critical section and must
-		// be protected by a spinlock; which ones?)
-
 		// Your code here (instead of the next two lines).
         
         //buy a ticket and wait in line
@@ -272,10 +241,6 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
         d->ticket_head++;
         osp_spin_unlock(&(d->mutex));
         if (filp_writable) {        //trying to obtain write lock
-            /*wait until no one has read or write lock
-             if condition becomes true, signal is sent to process and
-             needs to invalidate the ticket*/
-            //eprintk("trying to get write lock...\nnum_writer: %d num_reader: %d\n", d->num_writer, d->num_reader);
             if (wait_event_interruptible(d->blockq, d->ticket_tail==my_ticket&&d->num_reader==0 && d->num_writer==0)==-ERESTARTSYS) {
                 osp_spin_lock(&(d->mutex));
                 if (d->ticket_tail==my_ticket) {
@@ -296,7 +261,6 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
             filp->f_flags |= F_OSPRD_LOCKED;
             osp_spin_unlock(&(d->mutex));
         }else{                      //trying to obtain read lock
-            //eprintk("trying to get read lock...\nnum_writer: %d num_reader\n",d->num_writer, d->num_reader);
             if (wait_event_interruptible(d->blockq, (d->ticket_tail==my_ticket && d->num_writer==0))==-ERESTARTSYS) {
                 osp_spin_lock(&(d->mutex));
                 if (d->ticket_tail==my_ticket) {
@@ -310,7 +274,6 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
                 return -ERESTARTSYS;
             }
             //get your read lock here, good luck reading!
-            //eprintk("I got read lock!\n");
             osp_spin_lock(&(d->mutex));
             d->num_reader++;
             filp->f_flags |= F_OSPRD_LOCKED;
@@ -330,18 +293,8 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
         }
         osp_spin_unlock(&(d->mutex));
         r=0;
-		//eprintk("Attempting to acquire\n");
-		//r = -ENOTTY;
 
 	} else if (cmd == OSPRDIOCTRYACQUIRE) {
-
-		// EXERCISE: ATTEMPT to lock the ramdisk.
-		//
-		// This is just like OSPRDIOCACQUIRE, except it should never
-		// block.  If OSPRDIOCACQUIRE would block or return deadlock,
-		// OSPRDIOCTRYACQUIRE should return -EBUSY.
-		// Otherwise, if we can grant the lock request, return 0.
-
 		// Your code here (instead of the next two lines).
         osp_spin_lock(&(d->mutex));
         if (filp_writable) {  //a writer wants to publish his/her book!
@@ -368,26 +321,16 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
         r = 0;
 
 	} else if (cmd == OSPRDIOCRELEASE) {
-
-		// EXERCISE: Unlock the ramdisk.
-		//
-		// If the file hasn't locked the ramdisk, return -EINVAL.
-		// Otherwise, clear the lock from filp->f_flags, wake up
-		// the wait queue, perform any additional accounting steps
-		// you need, and return 0.
-
 		// Your code here (instead of the next line).
         osp_spin_lock(&(d->mutex));
         if (!(filp->f_flags & F_OSPRD_LOCKED)) { //no lock flag
             return -EINVAL;
         }
         if (filp_writable) {    //fire all writers
-            //eprintk("release write lock\n");
             d->num_writer=0;
             filp->f_flags &= ~F_OSPRD_LOCKED;
         }else{                  //one reader quit reading
             d->num_reader--;
-            //eprintk("reduce reade locks to %d\n",d->num_reader);
             if (d->num_reader==0) {
                 filp->f_flags &= ~F_OSPRD_LOCKED;
             }
