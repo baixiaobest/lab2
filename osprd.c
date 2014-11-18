@@ -340,7 +340,10 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
         osp_spin_unlock(&(d->mutex));
         r=0;
     } else if (cmd == OSPRDIOCGETNOTIFIED){
-        eprintk("you subscribe the notification: %s", (char*) arg);
+        int start=0, end=0;
+        char* argument = (char*) arg;
+        parseNotifiArg(argument, &start, &end);
+        eprintk("you subscribe the notification: %d to %d\n", start, end);
     } else
 		r = -ENOTTY; /* unknown command */
 	return r;
@@ -363,30 +366,27 @@ static void osprd_setup(osprd_info_t *d)
     d->current_popular_writer=-1;
 }
 
-int parseNotifiArg(char** arg, int *start_ptr, int *end_ptr)
+char* parseNotifiArg(char* arg, int *start_ptr, int *end_ptr)
 {
     int getStart = 1;
     *start_ptr = 0;
     *end_ptr = 0;
-    while (arg!=NULL&&*arg!=NULL&&**arg!='\0') {
-        if (**arg==':') {
-            getStart = 0;
-        }else if(**arg==','){
-            *arg++;
+    while (arg!=NULL && *arg!='\0') {
+        if (*arg==':') {
+            getStart=0;
+        }else if(*arg==','){
+            arg++;
             break;
-        }else if (getStart && **arg>=(int)'0' && **arg<=(int)'9') {
+        }else if(getStart == 1 && (int)*arg>=(int)'0' && (int)*arg<=(int)'9'){
             *start_ptr *= 10;
-            *start_ptr += (int)**arg-(int)'0';
-        }else if (!getStart && **arg>=(int)'0' && **arg<=(int)'9'){
-            *end_ptr *=10;
-            *end_ptr += (int)**arg-(int)'0';
+            *start_ptr += ((int)*arg - (int)'0');
+        }else if(getStart == 0 && (int)*arg>=(int)'0' && (int)*arg<=(int)'9'){
+            *end_ptr *= 10;
+            *end_ptr += ((int)*arg - (int)'0');
         }
-        *arg++;
+        arg++;
     }
-    if (getStart==1) {
-        return -1;
-    }
-    return 0;
+    return arg;
 }
 
 /*****************************************************************************/
