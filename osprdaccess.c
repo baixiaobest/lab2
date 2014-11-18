@@ -166,7 +166,6 @@ int main(int argc, char *argv[])
 	if (argc >= 2 && strcmp(argv[1], "-l") == 0) {
 		dolock = 1;
 		dotrylock = 0;
-        notification = 0;
 		argv++, argc--;
 		if (argc >= 2 && parse_double(argv[1], &lock_delay))
 			argv++, argc--;
@@ -177,7 +176,6 @@ int main(int argc, char *argv[])
 	if (argc >= 2 && strcmp(argv[1], "-L") == 0) {
 		dotrylock = 1;
 		dolock = 0;
-        notification = 0;
 		argv++, argc--;
 		if (argc >= 2 && parse_double(argv[1], &lock_delay))
 			argv++, argc--;
@@ -187,8 +185,6 @@ int main(int argc, char *argv[])
     //Detect notification option
     if (argc >= 2 && strcmp(argv[1], "-n") == 0) {
         notification = 1;
-        dolock = 0;
-        dotrylock = 0;
         argv++, argc--;
         if (argc >=2) {
             notification_argument = argv[1];
@@ -229,6 +225,12 @@ int main(int argc, char *argv[])
 		perror("open");
 		exit(1);
 	}
+    
+    if (notification
+             && ioctl(devfd, OSPRDIOCGETNOTIFIED, notification_argument) == -1){
+        perror("ioctl OSPRDIOCGETNOTIFIED");
+        exit(1);
+    }
 
 	// Lock, possibly after delay
 	if (dolock || dotrylock || notification) {
@@ -242,11 +244,7 @@ int main(int argc, char *argv[])
 			   && ioctl(devfd, OSPRDIOCTRYACQUIRE, NULL) == -1) {
 			perror("ioctl OSPRDIOCTRYACQUIRE");
 			exit(1);
-		} else if (notification
-                   && ioctl(devfd, OSPRDIOCGETNOTIFIED, notification_argument) == -1){
-            perror("ioctl OSPRDIOCGETNOTIFIED");
-            exit(1);
-        }
+		}
 	}
 
 	// Delay
