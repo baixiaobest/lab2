@@ -16,6 +16,8 @@
 
 #include "spinlock.h"
 #include "osprd.h"
+#include <string.h>
+#include <stdlib.h>
 
 /* The size of an OSPRD sector. */
 #define SECTOR_SIZE	512
@@ -338,7 +340,9 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
         wake_up_all(&(d->blockq));
         osp_spin_unlock(&(d->mutex));
         r=0;
-	} else
+    } else if (cmd == OSPRDIOCGETNOTIFIED){
+        eprintk("you subscribe the notification: %s", (char*) arg);
+    } else
 		r = -ENOTTY; /* unknown command */
 	return r;
 }
@@ -360,6 +364,34 @@ static void osprd_setup(osprd_info_t *d)
     d->current_popular_writer=-1;
 }
 
+int parseNotifiArg(char** arg, int *start_ptr, int *end_ptr)
+{
+    char start_str[100] = "";
+    char end_str[100] = "";
+    int getStart = 1;
+    while (arg!=NULL&&*arg!=NULL&&**arg!='\0') {
+        if (**arg==':') {
+            getStart = 0;
+        }else if(**arg==','){
+            *arg++;
+            break;
+        }else if (getStart && **arg>=(int)'0' && **arg<=(int)'9') {
+            char tmp[2]; tmp[0] = **arg; tmp[1] = '\0';
+            strcat(start_str,tmp);
+        }else if (!getStart && **arg>=(int)'0' && **arg<=(int)'9'){
+            char tmp[2]; tmp[0] = **arg; tmp[1] = '\0';
+            strcat(end_str,tmp);
+        }
+        *arg++;
+    }
+    if (strcmp(start_str, "")==0 || strcmp(end_str, "")==0) {
+        return -1;
+    }else{
+        *start_ptr = atoi(start_str);
+        *end_ptr = atoi(end_ptr);
+        return 0;
+    }
+}
 
 /*****************************************************************************/
 /*         THERE IS NO NEED TO UNDERSTAND ANY CODE BELOW THIS LINE!          */
