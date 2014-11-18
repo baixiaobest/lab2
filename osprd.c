@@ -342,8 +342,10 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
     } else if (cmd == OSPRDIOCGETNOTIFIED){
         int start=0, end=0;
         char* argument = (char*) arg;
-        parseNotifiArg(argument, &start, &end);
-        eprintk("you subscribe the notification: %d to %d\n", start, end);
+        while (*argument!='\0') {
+            argument = parseNotifiArg(argument, &start, &end);
+            eprintk("you subscribe the notification: %d to %d\n", start, end);
+        }
     } else
 		r = -ENOTTY; /* unknown command */
 	return r;
