@@ -345,7 +345,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
         int start=0, end=0;
         char* argument = (char*) arg;
         while (*argument!='\0') {
-            struct notification_list * new_node = (struct notification_list*)malloc(sizeof(notification_list));
+            struct notification_list * new_node = (struct notification_list*)kmalloc(sizeof(struct notification_list), GFP_ATOMIC);
             argument = parseNotifiArg(argument, &start, &end);
             new_node->change = 0;
             new_node->start = start;
