@@ -104,6 +104,7 @@ static osprd_info_t osprds[NOSPRD];
 // Declare useful helper functions
 char* parseNotifiArg(char* arg, int *start_ptr, int *end_ptr);
 int checkNotification(osprd_info_t *d, char*data, unsigned long offset, unsigned long dataSize, char* buffer);
+int waitChange(pid_t waiter, osprd_info_t* d);
 /*
  * file2osprd(filp)
  *   Given an open file, check whether that file corresponds to an OSP ramdisk.
@@ -146,6 +147,7 @@ static void osprd_process_request(osprd_info_t *d, struct request *req)
         osp_spin_unlock(&(d->mutex));
     }else if (rq_data_dir(req)==WRITE){
         osp_spin_lock(&(d->mutex));
+        checkNotification(d, (char*)d->data, offset, dataSize, req->buffer);
         memcpy(d->data+offset, req->buffer, dataSize);
         osp_spin_unlock(&(d->mutex));
     }else{
@@ -436,6 +438,18 @@ int checkNotification(osprd_info_t *d, char*data, unsigned long offset, unsigned
         current_ptr = current_ptr->next;
     }
     return return_status;
+}
+
+int waitChange(pid_t waiter, osprd_info_t* d)
+{
+    osprd_info_t* current_ptr = d->notifi_list;
+    while (current_ptr!=NULL) {
+        if (current_ptr->waiter_pid==waiter && current_ptr->change==1) {
+            return 1;
+        }
+        current_ptr = current_ptr->next;
+    }
+    return 0;
 }
 
 /*****************************************************************************/
