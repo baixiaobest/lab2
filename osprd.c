@@ -419,14 +419,14 @@ char* parseNotifiArg(char* arg, int *start_ptr, int *end_ptr)
 
 int checkNotification(osprd_info_t *d, char*data, unsigned long offset, unsigned long dataSize, char* buffer)
 {
-    notification_list* current_ptr = d->notifi_list;
+    struct notification_list* current_ptr = d->notifi_list;
     int return_status = 0;
     while (current_ptr!=NULL) {
         if ((int)offset>current_ptr->start-(int)dataSize && (int)offset<=current_ptr->end) {
             int ram_ptr = current_ptr->start;
             int buf_ptr = (int)offset<current_ptr->start ? current_ptr->start-(int)offset : 0;
             while (buf_ptr!=(int)dataSize || ram_ptr!=current_ptr->end) {
-                if ((char)data[start_ptr] != (char)buffer[buf_ptr]) {
+                if ((char)data[ram_ptr] != (char)buffer[buf_ptr]) {
                     current_ptr->change = 1;
                     return_status = 1;
                 }
