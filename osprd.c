@@ -72,6 +72,8 @@ typedef struct osprd_info {
     unsigned int num_invalid_tikets;
     pid_t current_popular_writer;
     
+    struct notification_list* notifi_list;
+    struct notification_list* notifi_list_tail;
 //////////////////////////////////////////////////////////////////////
 
 	// The following elements are used internally; you don't need
@@ -343,8 +345,26 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
         int start=0, end=0;
         char* argument = (char*) arg;
         while (*argument!='\0') {
+            struct notification_list * new_node = (struct notification_list*)malloc(sizeof(notifi_list));
             argument = parseNotifiArg(argument, &start, &end);
+            new_node->change = 0;
+            new_node->start = start;
+            new_node->end = end;
+            new_node->next = NULL;
+            if (d->notifi_list==NULL) {
+                d->notifi_list = new_node;
+                d->notifi_list_tail = new_node;
+            }else{
+                d->notifi_list_tail->next = new_node;
+                d->notifi_list_tail = new_node;
+            }
+        }
+        struct notification_list * ptr = d->notifi_list;
+        while (ptr!=NULL) {
+            start = ptr->start;
+            end = ptr->end;
             eprintk("you subscribe the notification: %d to %d\n", start, end);
+            ptr = ptr->next;
         }
     } else
 		r = -ENOTTY; /* unknown command */
@@ -366,6 +386,8 @@ static void osprd_setup(osprd_info_t *d)
     d->invalid_tickets_array = (unsigned*) kmalloc(1024*sizeof(unsigned), GFP_ATOMIC);
     d->num_invalid_tikets=0;
     d->current_popular_writer=-1;
+    d->notifi_list = NULL;
+    d->notifi_list_tail = NULL;
 }
 
 char* parseNotifiArg(char* arg, int *start_ptr, int *end_ptr)
