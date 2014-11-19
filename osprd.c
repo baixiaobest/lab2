@@ -425,14 +425,16 @@ int checkNotification(osprd_info_t *d, char*data, unsigned long offset, unsigned
     int return_status = 0;
     while (current_ptr!=NULL) {
         if ((int)offset>current_ptr->start-(int)dataSize && (int)offset<=current_ptr->end) {
-            int ram_ptr = current_ptr->start;
-            int buf_ptr = (int)offset<current_ptr->start ? current_ptr->start-(int)offset : 0;
-            while (buf_ptr!=(int)dataSize || ram_ptr!=current_ptr->end) {
-                if ((char)data[ram_ptr] != (char)buffer[buf_ptr]) {
-                    current_ptr->change = 1;
-                    return_status = 1;
-                }
-                buf_ptr++;ram_ptr++;
+            char* ram_ptr = (int)offset < current_ptr ? data+(unsigned long) current_ptr->start : data+offset;
+            char* buf_ptr = (int)offset < current_ptr ? buffer+(unsigned long)current_ptr->start-offset : buffer;
+            unsigned long size;
+            if ((int)offset < current_ptr) {
+                size = offset+dataSize<current_ptr->end ? offset+dataSize-current_ptr->start : current_ptr->end - current_ptr->start;
+            }else{
+                size = offset+dataSize<current_ptr->end ? offset+dataSize-offset : current_ptr->end - offset;
+            }
+            if (memcmp(ram_ptr, buf_ptr, size)!=0) {
+                eprintk("change occurs\n");
             }
         }
         current_ptr = current_ptr->next;
