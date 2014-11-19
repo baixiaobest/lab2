@@ -425,10 +425,10 @@ int checkNotification(osprd_info_t *d, char*data, unsigned long offset, unsigned
     int return_status = 0;
     while (current_ptr!=NULL) {
         if ((int)offset>current_ptr->start-(int)dataSize && (int)offset<=current_ptr->end) {
-            char* ram_ptr = (int)offset < current_ptr ? data+(unsigned long) current_ptr->start : data+offset;
-            char* buf_ptr = (int)offset < current_ptr ? buffer+(unsigned long)current_ptr->start-offset : buffer;
+            char* ram_ptr = (int)offset < current_ptr->start ? data+(unsigned long) current_ptr->start : data+offset;
+            char* buf_ptr = (int)offset < current_ptr->start ? buffer+(unsigned long)current_ptr->start-offset : buffer;
             unsigned long size;
-            if ((int)offset < current_ptr) {
+            if ((int)offset < current_ptr->start) {
                 size = offset+dataSize<current_ptr->end ? offset+dataSize-current_ptr->start : current_ptr->end - current_ptr->start;
             }else{
                 size = offset+dataSize<current_ptr->end ? offset+dataSize-offset : current_ptr->end - offset;
@@ -444,7 +444,7 @@ int checkNotification(osprd_info_t *d, char*data, unsigned long offset, unsigned
 
 int waitChange(pid_t waiter, osprd_info_t* d)
 {
-    osprd_info_t* current_ptr = d->notifi_list;
+    notification_list_t* current_ptr = d->notifi_list;
     while (current_ptr!=NULL) {
         if (current_ptr->waiter_pid==waiter && current_ptr->change==1) {
             return 1;
