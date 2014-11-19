@@ -69,12 +69,25 @@ to see if the change flag in the notification list is changed to 1. If so,
 process can unsubscribe from waiting for notification, and the node in the list
 will be deleted. Waiting functionality is implemented with wait_event_interruptible().
 
+DEMO
+=======================
+nothing happens(1): When no data written to subscribed region, process will not
+get notified.
+
+disk changed(1): only when data are written to subscribed region, will process get
+notified.
+
+nothing happens writing same data(2): when we write the same data to subscribed
+region, process will not get notified.
+
+
 SUMMARY
 =========================
 This implementation of Notification is successful, and user is free to subscribe for
 multiple regions on disk for notification. And argument grammar is simple and elegant
 for users.
 
-
+Difficult part of design lab:
+I found that writing this report is a pain… Even writing codes is easier.
 
 
