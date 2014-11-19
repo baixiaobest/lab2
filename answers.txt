@@ -21,4 +21,5 @@ Email: jiayilu@g.ucla.edu
 
 # Add any other information you'd like us to have below this line.
 
-program passed all tests
+This the answer for design problem for Change Notification.
+Detailed report can be seen in Report
