@@ -368,6 +368,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
         if (wait_event_interruptible(d->blockq, waitChange(current->pid,d))==-ERESTARTSYS) {
             return -ERESTARTSYS;
         }
+        wake_up_all(&(d->blockq));
         r=0;
     } else
 		r = -ENOTTY; /* unknown command */

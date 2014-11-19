@@ -1,0 +1,80 @@
+Design Lab: Change Notification
+================================
+
+Description of Features
+————————————————————————————
+option -n is added. So when it is specified, process
+with this option can watch different data region on
+the disk and get notified if data is changed.
+For example:
+A process is ran with:
+$ ./osprdaccess -n 0:10,13:14,100:200
+can subscribe to get notified when data of index from 0 to 9
+, 13 and from 100 to 199 (inclusive) are changed.
+
+Implementation
+====================================
+New flag OSPRDIOCGETNOTIFIED for ioctl() is added in osprd.h.
+
+New option “-n” can be recognized with some modification in
+osprdaccess.c file. So when -n is read, main will call
+ioctl(devfd, OSPRDIOCGETNOTIFIED, notification_argument)
+Where notification_argument contains argument for -n option
+
+A parser function parseNotifiArg() is added in osprd.c.
+Function can parse the argument like 0:10,13:14,100:200
+into a notification list data structure.
+
+Data Structure
+—————————————————————————————————
+notification_list:
+    pid_t waiter_pid;
+    int change;
+    int start;
+    int end;
+    struct notification_list *next;
+
+so every subscription for notification will be stored as a linked-list
+of notification_list structure.
+For example, a process of pid 3100 subscribe to notification
+0:10,13:14 would create a link list of:
+
++——————————————————+       +——————————————————+
+|waiter_pid = 3100 |       |waiter_pid = 3100 |
+|change = 0        |       |change = 0        |
+|start = 0         |       |start = 13 	      |
+|end = 10          |       |end = 14	      |
+|next—————————————————————>|next—————————————————>NULL
++——————————————————+       +——————————————————+
+
+this link list is stored in osprd_info structure
+
+
+How Does Process Get Notified
+————————————————————————————————————
+We already know that process can subscribed to notification
+by parsing the argument into a link list stored in osprd_info,
+but how does process know something changed?
+
+So I introduced checkNotification function in osprd_process_request.
+Before a process attempt to write to the disk, checkNotification function
+will be called. This function basically goes through the notification
+link list and see if subscribed data region overlap with new data. If so,
+check if new data is different from the old data in subscribed data region.
+If the new data is different from the old data in subscribed region, it sets
+the change flag to 1.
+
+In this way, the process who subscribes to notification can constantly check
+to see if the change flag in the notification list is changed to 1. If so,
+process can unsubscribe from waiting for notification, and the node in the list
+will be deleted. Waiting functionality is implemented with wait_event_interruptible().
+
+SUMMARY
+=========================
+This implementation of Notification is successful, and user is free to subscribe for
+multiple regions on disk for notification. And argument grammar is simple and elegant
+for users.
+
+
+
+
