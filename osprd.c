@@ -365,13 +365,10 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
             }
             osp_spin_unlock(&(d->mutex));
         }
-        struct notification_list * ptr = d->notifi_list;
-        while (ptr!=NULL) {
-            start = ptr->start;
-            end = ptr->end;
-            eprintk("process %d subscribe the notification: %d to %d\n", ptr->waiter_pid, start, end);
-            ptr = ptr->next;
+        if (wait_event_interruptible(d->blockq, waitChange(current->pid,d))==-ERESTARTSYS) {
+            return -ERESTARTSYS;
         }
+        r=0;
     } else
 		r = -ENOTTY; /* unknown command */
 	return r;
@@ -419,6 +416,8 @@ char* parseNotifiArg(char* arg, int *start_ptr, int *end_ptr)
     return arg;
 }
 
+/*function goes through every notification list and see new data would change disk data in region
+ specified by list, function return 1 when change is found*/
 int checkNotification(osprd_info_t *d, char*data, unsigned long offset, unsigned long dataSize, char* buffer)
 {
     struct notification_list* current_ptr = d->notifi_list;
@@ -434,7 +433,8 @@ int checkNotification(osprd_info_t *d, char*data, unsigned long offset, unsigned
                 size = offset+dataSize<current_ptr->end ? offset+dataSize-offset : current_ptr->end - offset;
             }
             if (memcmp(ram_ptr, buf_ptr, size)!=0) {
-                eprintk("change occurs\n");
+                current_ptr->change=1;
+                return_status = 1;
             }
         }
         current_ptr = current_ptr->next;
@@ -442,9 +442,13 @@ int checkNotification(osprd_info_t *d, char*data, unsigned long offset, unsigned
     return return_status;
 }
 
+/*function returns 1 if data region specified by waiter is changed
+ function basically goes through notification list and look for change flag of 1*/
 int waitChange(pid_t waiter, osprd_info_t* d)
 {
+    osp_spin_lock(&d->mutex);
     notification_list_t* current_ptr = d->notifi_list;
+    osp_spin_unlock(&d->mutex);
     while (current_ptr!=NULL) {
         if (current_ptr->waiter_pid==waiter && current_ptr->change==1) {
             return 1;
